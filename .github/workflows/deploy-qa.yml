@@ -1,5 +1,4 @@
-#Test1
-name: Deploy QA
+name: Build and Push Docker Images
 
 on:
   push:
@@ -7,49 +6,63 @@ on:
       - main
 
 jobs:
-  build-and-deploy:
-    runs-on: self-hosted 
+  build-and-push:
+    runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout code
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. Login to Docker Hub
-      - name: Login to Docker Hub
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 3. Build backend image
-      - name: Build backend image
-        run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/backendfinal:latest ./backend
-
-      # 4. Build frontend image
-      - name: Build frontend image
-        run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/frontendfinal:latest ./frontend
-
-      # 5. Push backend image
-      - name: Push backend image
-        run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/backendfinal:latest
-
-      # 6. Push frontend image
-      - name: Push frontend image
-        run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/frontendfinal:latest
-
-      # 7. Deploy to QA via SSH
-      - name: Deploy to QA server
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Build and push frontend
+        uses: docker/build-push-action@v5
         with:
-          host: ${{ secrets.QA_HOST }}
-          username: ${{ secrets.QA_USER }}
-          key: ${{ secrets.QA_SSH_KEY }}
-          script: |
-            cd ~/csc424-final-exam
-            docker compose pull
-            docker compose up -d
+          context: ./frontend
+          push: true
+          platforms: linux/arm64
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/frontend:latest
+
+      - name: Build and push backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          platforms: linux/arm64
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/backend:latest
+
+      - name: Build and push nginx
+        uses: docker/build-push-action@v5
+        with:
+          context: ./nginx
+          push: true
+          platforms: linux/arm64
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/nginx:latest
+
+  deploy:
+    runs-on: self-hosted
+    needs: build-and-push
+
+    steps:
+      - name: Deploy
+        env:
+          DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          set -e
+
+          mkdir -p ~/app/deploy
+          cd ~/app/deploy
+
+          curl -o ~/app/deploy/docker-compose.yml https://raw.githubusercontent.com/GK2026/csc424-final-exam/main/docker-compose.yml
+
+          sed -i "s|YOUR_DOCKERHUB_USERNAME|$DOCKER_USER|g" docker-compose.yml
+
+          docker compose pull
+          docker compose up -d
