@@ -1,4 +1,4 @@
-name: Build and Push Docker Images
+name: Build and Deploy
 
 on:
   push:
@@ -27,15 +27,13 @@ jobs:
         with:
           context: ./frontend
           push: true
-          platforms: linux/arm64
-          tags: ${{ secrets.DOCKERUSERNAME }}/frontend:latest
+          tags: ${{ secrets.DOCKER_USERNAME }}/frontend:latest
 
       - name: Build and push backend
         uses: docker/build-push-action@v5
         with:
           context: ./backend
           push: true
-          platforms: linux/arm64
           tags: ${{ secrets.DOCKER_USERNAME }}/backend:latest
 
       - name: Build and push nginx
@@ -43,26 +41,18 @@ jobs:
         with:
           context: ./nginx
           push: true
-          platforms: linux/arm64
           tags: ${{ secrets.DOCKER_USERNAME }}/nginx:latest
+
 
   deploy:
     runs-on: self-hosted
     needs: build-and-push
 
     steps:
-      - name: Deploy
-        env:
-          DOCKER_USER: ${{ secrets.DOCKER_USERNAME }}
+      - name: Checkout repo on runner
+        uses: actions/checkout@v4
+
+      - name: Deploy with Docker Compose
         run: |
-          set -e
-
-          mkdir -p ~/app/deploy
-          cd ~/app/deploy
-
-          curl -o ~/app/deploy/docker-compose.yml https://raw.githubusercontent.com/GK2026/csc424-final-exam/main/docker-compose.yml
-
-          sed -i "s|YOUR_DOCKERHUB_USERNAME|$DOCKER_USER|g" docker-compose.yml
-
           docker compose pull
           docker compose up -d
