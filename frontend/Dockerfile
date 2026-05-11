@@ -26,8 +26,7 @@ RUN npm run build
 
 FROM nginx:1.27-alpine 
 
-COPY --from=builder /app/dist /usr/share/nginx/html 
-
+COPY --from=builder /app/build /usr/share/nginx/html
  
 
 # Step 4: Expose to a port 
