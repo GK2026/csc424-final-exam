@@ -14,18 +14,26 @@ services:
     restart: always
 
   frontend:
-    image: csc424lab9/frontendfinal:latest
+    build:
+      context: ./frontend
     networks:
       - app-network
     restart: always
 
   backend:
-    image: csc424lab9/backendfinal:latest
+    build:
+      context: ./backend
     environment:
       - ASPNETCORE_URLS=http://+:8080
     networks:
       - app-network
     restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 networks:
   app-network:
