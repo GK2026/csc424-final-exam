@@ -1,36 +1,27 @@
-# syntax=docker/dockerfile:1 
+# syntax=docker/dockerfile:1
 
- 
+# Build stage
+FROM node:22-alpine AS builder
 
-# Step 2: Download dependencies 
+WORKDIR /app
 
-FROM node:22-alpine AS builder 
+# Install dependencies
+COPY package*.json ./
 
-WORKDIR /app 
+RUN npm install --no-fund --no-audit
 
-COPY package*.json ./ 
+# Copy source code
+COPY . .
 
-RUN npm install --no-fund --no-audit 
+# Build React app
+RUN npm run build
 
- 
+# Production stage
+FROM nginx:1.27-alpine
 
-# Step 3: Run the code (build for production) 
+# Copy React production build
+COPY --from=builder /app/dist /usr/share/nginx/html
+# Expose nginx port
+EXPOSE 80
 
-COPY . . 
-
-RUN npm run build 
-
- 
-
-# Serve with nginx 
-
-FROM nginx:1.27-alpine 
-
-COPY --from=builder /app/build /usr/share/nginx/html
- 
-
-# Step 4: Expose to a port 
-
-EXPOSE 80 
-
-CMD ["nginx", "-g", "daemon off;"] 
+CMD ["nginx", "-g", "daemon off;"]
