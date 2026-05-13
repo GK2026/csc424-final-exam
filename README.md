@@ -29,3 +29,24 @@ Nginx acts as a reverse proxy and load balancer. It:
 - Serves the frontend application
 - Routes API requests (`/api/*`) to the backend services
 - Distributes traffic across multiple backend containers using round-robin load balancing
+
+---
+
+## CI/CD Pipeline
+
+This project uses GitHub Actions for continuous integration and deployment.
+
+When code is pushed to the `main` branch, the pipeline automatically:
+
+1. Builds Docker images for:
+   - frontend
+   - backend
+   - nginx
+
+2. Pushes the images to Docker Hub using version tag `latest`.
+
+3. Deploys the application to a self-hosted VM using Docker Compose.
+
+4. The VM pulls the latest images and restarts the containers automatically.
+
+This ensures every change to the codebase is automatically built, published, and deployed without manual intervention.
